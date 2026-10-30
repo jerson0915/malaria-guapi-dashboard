@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Malaria en Guapi 2022–2025</title>
+<meta name="description" content="Dashboard de malaria del municipio de Guapi, Cauca: casos, IPA, veredas y barrios sobre mapa satelital.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Public+Sans:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+/* Banner de color, indicadores, mapa satelital con ficha lateral, gráficos, tablas y glosario */
+:root {
+  --teal: #0E9F8E; --ocean: #1F6FB2; --coral: #F26B4F; --amber: #F2A541; --violet: #7B5CC4; --green: #3FA34D; --navy: #0B4F6C;
+  --bg: #F3F7F8; --panel: #FFFFFF; --fg: #13222C; --muted: #5A6B77; --line: #DCE4E8; --grid: #E7EDF0; --soft: #EEF4F5;
+  --display: "Fraunces", Georgia, "Times New Roman", serif; --body: "Public Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0C151D; --panel: #14212C; --fg: #E6EDF2; --muted: #9BAEBB; --line: #263746; --grid: #1D2C38; --soft: #192834; color-scheme: dark; } }
+:root[data-theme="dark"] { --bg: #0C151D; --panel: #14212C; --fg: #E6EDF2; --muted: #9BAEBB; --line: #263746; --grid: #1D2C38; --soft: #192834; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 20px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 20px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+.banner { background: linear-gradient(120deg, #0B4F6C 0%, #0E9F8E 55%, #3FA34D 100%); color: #FFFFFF; border-radius: 16px; padding: 28px 24px; box-shadow: 0 10px 28px rgba(11, 79, 108, .28); display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: flex-end; }
+.kicker { display: inline-block; background: #FFFFFF; color: var(--navy); border-radius: 999px; padding: 2px 12px; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; margin-bottom: 10px; }
+.banner h1 { font-family: var(--display); font-weight: 700; font-size: clamp(28px, 4.5vw, 42px); line-height: 1.1; }
+.banner p { margin: 8px 0 0; max-width: 62ch; color: rgba(255, 255, 255, .9); }
+.modo { display: inline-flex; gap: 4px; background: rgba(255, 255, 255, .18); border-radius: 999px; padding: 4px; }
+.modo button { font: inherit; font-size: 13px; border: 0; border-radius: 999px; padding: 6px 14px; background: transparent; color: #FFFFFF; cursor: pointer; }
+.modo button[aria-pressed="true"] { background: #FFFFFF; color: var(--navy); font-weight: 700; }
+.modo button:focus-visible, .btn:focus-visible, select:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 14px; }
+.tile { --a: var(--teal); background: color-mix(in srgb, var(--a) 9%, var(--panel)); border: 1px solid var(--line); border-top: 4px solid var(--a); border-radius: 12px; padding: 16px; }
+.tile:nth-child(5n+2) { --a: var(--coral); } .tile:nth-child(5n+3) { --a: var(--ocean); } .tile:nth-child(5n+4) { --a: var(--amber); } .tile:nth-child(5n+5) { --a: var(--violet); }
+.tile .lbl { font-size: 13px; color: var(--muted); }
+.tile .big { display: block; font-family: var(--display); font-weight: 500; font-size: 34px; line-height: 1.15; margin-top: 4px; color: color-mix(in srgb, var(--a) 72%, var(--fg)); font-variant-numeric: tabular-nums; }
+.tile .sub { font-size: 12px; color: var(--muted); }
+.card { --c: var(--teal); background: var(--panel); border: 1px solid var(--line); border-top: 4px solid var(--c); border-radius: 12px; padding: 18px; min-width: 0; }
+.card h2 { font-size: 18px; font-weight: 700; }
+.note { color: var(--muted); font-size: 13px; margin: 4px 0 12px; }
+.mapgrid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 20px; }
+@media (max-width: 900px) { .mapgrid { grid-template-columns: 1fr; } }
+#mapcard { --c: var(--ocean); }
+#map { height: 560px; border-radius: 10px; border: 1px solid var(--line); }
+@media (max-width: 600px) { #map { height: 420px; } }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--muted); margin: 10px 0 0; }
+.sw { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+#ficha { --c: var(--coral); background: linear-gradient(165deg, color-mix(in srgb, var(--coral) 10%, var(--panel)) 0%, var(--panel) 50%, color-mix(in srgb, var(--teal) 8%, var(--panel)) 100%); display: flex; flex-direction: column; gap: 12px; }
+select { font: inherit; width: 100%; padding: 9px 10px; border: 2px solid var(--coral); border-radius: 10px; background: var(--panel); color: var(--fg); font-weight: 500; }
+.btn { font: inherit; font-size: 13px; font-weight: 700; border: 0; border-radius: 999px; padding: 7px 14px; cursor: pointer; background: var(--coral); color: #FFFFFF; }
+.fname { font-family: var(--display); font-size: 28px; font-weight: 700; color: color-mix(in srgb, var(--coral) 80%, var(--fg)); }
+.ftype { color: var(--muted); font-size: 13px; }
+.kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.kv div { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.kv span { display: block; font-size: 12px; color: var(--muted); }
+.kv b { font-family: var(--display); font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.fsum { margin: 0; font-size: 14px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 20px; }
+#c-anual-card { --c: var(--teal); } #c-zona-card { --c: var(--amber); } #veredas { --c: var(--green); } #barrios { --c: var(--violet); } #glosario { --c: var(--teal); }
+.chart { position: relative; width: 100%; }
+.chart svg { display: block; width: 100%; height: auto; }
+.chart text { font-family: var(--body); font-size: 12px; }
+.tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 18px rgba(0, 0, 0, .18); padding: 6px 10px; font-size: 12px; white-space: nowrap; z-index: 5; }
+.tip .t { color: var(--muted); }
+.tbox { max-height: 420px; overflow: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+th, td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+th:first-child, td:first-child, th.l, td.l { text-align: left; }
+th { position: sticky; top: 0; background: var(--panel); color: color-mix(in srgb, var(--c) 70%, var(--fg)); font-weight: 700; }
+tbody tr { cursor: pointer; }
+tbody tr:hover td { background: color-mix(in srgb, var(--c) 8%, var(--panel)); }
+tr.sel td { background: color-mix(in srgb, var(--coral) 16%, var(--panel)); font-weight: 700; }
+@media (max-width: 600px) { .hn { display: none; } }
+.glos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 10px 24px; margin: 12px 0 0; }
+.glos dt { font-weight: 700; color: color-mix(in srgb, var(--teal) 75%, var(--fg)); }
+.glos dd { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+.src { color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); padding-top: 14px; }
+.src a { color: inherit; }
+abbr[title] { text-decoration: underline dotted; text-underline-offset: 3px; cursor: help; }
+.leaflet-popup-content { font-family: var(--body); font-size: 13px; line-height: 1.45; }
+.leaflet-popup-content h4 { margin: 0 0 2px; font-family: var(--display); font-size: 17px; color: #C2452D; }
+.vlabel { background: rgba(0, 0, 0, .55); border: 0; color: #FFFFFF; font-weight: 700; font-size: 12px; box-shadow: none; padding: 2px 6px; }
+.vlabel::before { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="banner">
+    <div>
+      <span class="kicker">Vigilancia epidemiológica · Pacífico caucano</span>
+      <h1>Malaria en Guapi, Cauca (2022–2025)</h1>
+      <p>La transmisión se concentra en las veredas de los ríos Guajuí y Napi y en los barrios periurbanos de la cabecera. Casi todos los casos son por <i>Plasmodium falciparum</i>.</p>
+    </div>
+    <div class="modo" role="group" aria-label="Modo de visualización">
+      <button type="button" data-modo="auto" aria-pressed="true">Automático</button>
+      <button type="button" data-modo="light" aria-pressed="false">☀ Día</button>
+      <button type="button" data-modo="dark" aria-pressed="false">☾ Noche</button>
+    </div>
+  </header>
+
+  <section class="tiles" aria-label="Indicadores municipales 2024">
+    <div class="tile"><span class="lbl">Casos 2024</span><b class="big" id="k-casos">—</b><span class="sub">Municipio de Guapi</span></div>
+    <div class="tile"><span class="lbl"><abbr title="Índice Parasitario Anual: casos por cada 1.000 habitantes en un año">IPA</abbr> 2024</span><b class="big" id="k-ipa">—</b><span class="sub">casos por 1.000 hab.</span></div>
+    <div class="tile"><span class="lbl">Cambio vs. 2023</span><b class="big" id="k-cambio">—</b><span class="sub">en número de casos</span></div>
+    <div class="tile"><span class="lbl">Aporte rural 2024</span><b class="big" id="k-rural">—</b><span class="sub">de los casos del municipio</span></div>
+    <div class="tile"><span class="lbl">Año más crítico</span><b class="big" id="k-pico">—</b><span class="sub" id="k-pico-sub">—</span></div>
+  </section>
+
+  <div class="mapgrid">
+    <section class="card" id="mapcard">
+      <h2>Mapa satelital de veredas priorizadas</h2>
+      <p class="note">Toca un círculo para ver su ficha. El tamaño es el total de casos 2022–2025. Puedes cambiar a mapa de calles con el botón de capas.</p>
+      <div id="map" role="region" aria-label="Mapa satelital de Guapi"></div>
+      <div class="legend">
+        <span><span class="sw" style="background: var(--coral)"></span>Río Napi</span>
+        <span><span class="sw" style="background: var(--ocean)"></span>Río Guajuí</span>
+        <span><span class="sw" style="background: var(--navy); border-radius: 2px"></span>Cabecera de Guapi (barrios)</span>
+      </div>
+      <p class="note">San Antonio de Guajuí y Santa Rosa no aparecen en el mapa porque no hay coordenadas públicas confiables. Los barrios no tienen coordenadas: al elegir uno, el mapa va a la cabecera.</p>
+    </section>
+
+    <aside class="card" id="ficha" aria-live="polite">
+      <div>
+        <h2>Ficha por vereda o barrio</h2>
+        <p class="note">Elige un lugar en la lista, en el mapa o en las tablas.</p>
+      </div>
+      <label for="sel" class="ftype">Lugar</label>
+      <select id="sel"></select>
+      <div id="f-muni">
+        <p class="fsum">Estás viendo el dato municipal. Elige una vereda o un barrio para compararlo con el municipio.</p>
+      </div>
+      <div id="f-lugar" hidden>
+        <div class="fname" id="f-nombre">—</div>
+        <div class="ftype" id="f-tipo">—</div>
+        <div class="kv" style="margin-top: 10px">
+          <div><span>Casos 2022–2025</span><b id="f-total">—</b></div>
+          <div><span>Casos 2024</span><b id="f-c24">—</b></div>
+          <div><span>Población</span><b id="f-pob">—</b></div>
+          <div><span>Tasa 2024 por 1.000 hab.</span><b id="f-tasa">—</b></div>
+          <div><span>Peso en el municipio 2024</span><b id="f-peso">—</b></div>
+          <div><span>Puesto por casos</span><b id="f-rango">—</b></div>
+        </div>
+        <p class="fsum" style="margin-top: 10px" id="f-frase">—</p>
+        <h3 style="font-size: 15px; margin-top: 14px">Casos por año frente al municipio</h3>
+        <div class="chart" id="f-serie"></div>
+        <button class="btn" type="button" id="f-clear">Ver todo el municipio</button>
+      </div>
+    </aside>
+  </div>
+
+  <div class="grid2">
+    <section class="card" id="c-anual-card">
+      <h2>Casos reportados por año</h2>
+      <p class="note">Debajo de cada barra, el <abbr title="Índice Parasitario Anual">IPA</abbr>. 2025 es parcial (corte a la semana 49).</p>
+      <div class="chart" id="c-anual"></div>
+    </section>
+    <section class="card" id="c-zona-card">
+      <h2>Casos por zona del municipio</h2>
+      <p class="note">Urbana, periurbana y rural. Las cifras de 2025 de esta serie y la anual vienen de cortes distintos de la fuente.</p>
+      <div class="legend" style="margin: 0 0 8px">
+        <span><span class="sw" style="background: var(--teal)"></span>Rural</span>
+        <span><span class="sw" style="background: var(--amber)"></span>Periurbana</span>
+        <span><span class="sw" style="background: var(--violet)"></span>Urbana</span>
+      </div>
+      <div class="chart" id="c-zona"></div>
+    </section>
+  </div>
+
+  <section class="card" id="veredas">
+    <h2>Veredas rurales priorizadas</h2>
+    <p class="note">Toca una fila para ver su ficha. Tasa: casos de 2024 por 1.000 habitantes de la vereda.</p>
+    <div class="tbox"><table>
+      <thead><tr><th>Vereda</th><th class="l">Río</th><th class="hn">2022</th><th class="hn">2023</th><th>2024</th><th class="hn">2025</th><th>Total</th><th class="hn">Población</th><th>Tasa 2024</th></tr></thead>
+      <tbody id="t-veredas"></tbody>
+    </table></div>
+  </section>
+
+  <section class="card" id="barrios">
+    <h2>Barrios de la cabecera</h2>
+    <p class="note">Toca una fila para ver su ficha. Los barrios periurbanos cargan la mayor parte de los casos urbanos.</p>
+    <div class="tbox"><table>
+      <thead><tr><th>Barrio</th><th class="l">Zona</th><th class="hn">2022</th><th class="hn">2023</th><th>2024</th><th class="hn">2025</th><th>Total</th><th class="hn">Población</th><th>Tasa 2024</th></tr></thead>
+      <tbody id="t-barrios"></tbody>
+    </table></div>
+  </section>
+
+  <section class="card" id="glosario">
+    <h2>Glosario de siglas y términos</h2>
+    <dl class="glos">
+      <div><dt>IPA</dt><dd>Índice Parasitario Anual. Casos de malaria por cada 1.000 habitantes en un año.</dd></div>
+      <div><dt>Tasa por 1.000 hab.</dt><dd>Igual que el IPA, pero para una vereda o barrio: casos del lugar sobre su población, por 1.000.</dd></div>
+      <div><dt>SIVIGILA</dt><dd>Sistema Nacional de Vigilancia en Salud Pública, donde se reportan los casos.</dd></div>
+      <div><dt>INS</dt><dd>Instituto Nacional de Salud. Coordina el SIVIGILA.</dd></div>
+      <div><dt>DANE</dt><dd>Departamento Administrativo Nacional de Estadística. Fuente de la población.</dd></div>
+      <div><dt>MinSalud</dt><dd>Ministerio de Salud y Protección Social.</dd></div>
+      <div><dt>AMM</dt><dd>Administración Masiva de Medicamentos: antimaláricos a toda la población de una zona priorizada.</dd></div>
+      <div><dt>ARM</dt><dd>Administración Reactiva de Medicamentos: tratar a los convivientes de cada caso.</dd></div>
+      <div><dt><i>P. falciparum</i></dt><dd><i>Plasmodium falciparum</i>, la especie que causa casi toda la malaria en Guapi y la que más se complica.</dd></div>
+      <div><dt><i>P. vivax</i></dt><dd><i>Plasmodium vivax</i>, la otra especie común en Colombia; puede recaer meses después.</dd></div>
+      <div><dt>SE</dt><dd>Semana epidemiológica. El año se divide en 52 o 53 semanas.</dd></div>
+      <div><dt>ESE</dt><dd>Empresa Social del Estado: el hospital público del municipio.</dd></div>
+      <div><dt>ColVol</dt><dd>Colaboradores voluntarios que diagnostican y tratan malaria en su comunidad.</dd></div>
+      <div><dt>Urbana / periurbana / rural</dt><dd>Barrios centrales, barrios del borde de la cabecera y veredas sobre los ríos.</dd></div>
+      <div><dt>Mpio.</dt><dd>Municipio.</dd></div>
+      <div><dt>GeoNames y OSM</dt><dd>Bases geográficas abiertas (OSM: OpenStreetMap) de donde salen las coordenadas.</dd></div>
+    </dl>
+  </section>
+
+  <p class="src">Fuentes: Ministerio de Salud y Protección Social, propuesta de Administración Masiva de Medicamentos antimaláricos, Guapi, Cauca (2026), con datos de SIVIGILA Cauca, Power BI Malaria del INS y proyecciones DANE; población de veredas y barrios del censo de la Microplanificación 2023. Coordenadas: GeoNames y OpenStreetMap. Imagen satelital: Esri World Imagery (Esri, Maxar, Earthstar Geographics).</p>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const D = {"anual": [{"anio": "2022", "casos": 1317, "poblacion": 28736, "ipa": 45.83}, {"anio": "2023", "casos": 2713, "poblacion": 28979, "ipa": 93.62}, {"anio": "2024", "casos": 2009, "poblacion": 29275, "ipa": 68.62}, {"anio": "2025", "casos": 932, "poblacion": 29530, "ipa": 31.56}], "zona": [{"anio": "2022", "zona": "Urbana", "casos": 103}, {"anio": "2023", "zona": "Urbana", "casos": 334}, {"anio": "2024", "zona": "Urbana", "casos": 150}, {"anio": "2025", "zona": "Urbana", "casos": 58}, {"anio": "2022", "zona": "Periurbana", "casos": 282}, {"anio": "2023", "zona": "Periurbana", "casos": 947}, {"anio": "2024", "zona": "Periurbana", "casos": 288}, {"anio": "2025", "zona": "Periurbana", "casos": 98}, {"anio": "2022", "zona": "Rural", "casos": 932}, {"anio": "2023", "zona": "Rural", "casos": 1432}, {"anio": "2024", "zona": "Rural", "casos": 1571}, {"anio": "2025", "zona": "Rural", "casos": 423}], "veredas": [{"nombre": "Belén", "rio": "Napi", "c": {"2022": 86, "2023": 591, "2024": 501, "2025": 107}, "total": 1285, "poblacion": 689, "viviendas": 153, "lat": 2.51052, "lon": -77.59202, "fuente": "GeoNames"}, {"nombre": "El Carmelo", "rio": "Guajuí", "c": {"2022": 282, "2023": 221, "2024": 364, "2025": 35}, "total": 902, "poblacion": 850, "viviendas": 188, "lat": 2.63647, "lon": -77.76023, "fuente": "OpenStreetMap"}, {"nombre": "San José de Guare", "rio": "Guajuí", "c": {"2022": 135, "2023": 154, "2024": 188, "2025": 25}, "total": 502, "poblacion": 588, "viviendas": 130, "lat": 2.61563, "lon": -77.75359, "fuente": "GeoNames"}, {"nombre": "San Antonio de Guajuí", "rio": "Guajuí", "c": {"2022": 203, "2023": 53, "2024": 94, "2025": 25}, "total": 375, "poblacion": 912, "viviendas": 202, "lat": null, "lon": null, "fuente": "Sin coordenada"}, {"nombre": "Limones", "rio": "Guajuí", "c": {"2022": 26, "2023": 36, "2024": 81, "2025": 44}, "total": 187, "poblacion": 1392, "viviendas": 310, "lat": 2.6105, "lon": -77.7976, "fuente": "GeoNames"}, {"nombre": "Santa Rosa", "rio": "Guajuí", "c": {"2022": 42, "2023": 60, "2024": 24, "2025": 12}, "total": 138, "poblacion": 249, "viviendas": 55, "lat": null, "lon": null, "fuente": "Sin coordenada"}, {"nombre": "Calle Larga", "rio": "Napi", "c": {"2022": 1, "2023": 35, "2024": 61, "2025": 32}, "total": 129, "poblacion": 387, "viviendas": 86, "lat": 2.515, "lon": -77.61222, "fuente": "GeoNames"}, {"nombre": "Quiroga", "rio": "Guajuí", "c": {"2022": 17, "2023": 17, "2024": 20, "2025": 35}, "total": 89, "poblacion": 927, "viviendas": 206, "lat": 2.61, "lon": -77.82, "fuente": "GeoNames (aprox.)"}, {"nombre": "San Agustín", "rio": "Napi", "c": {"2022": 18, "2023": 36, "2024": 1, "2025": 0}, "total": 55, "poblacion": 343, "viviendas": 76, "lat": 2.51861, "lon": -77.60056, "fuente": "GeoNames"}], "barrios": [{"nombre": "Fortaleza", "zona": "Periurbana", "c": {"2022": 79, "2023": 271, "2024": 105, "2025": 23}, "total": 478, "poblacion": 699, "viviendas": 155}, {"nombre": "Santa Mónica", "zona": "Periurbana", "c": {"2022": 66, "2023": 279, "2024": 71, "2025": 11}, "total": 427, "poblacion": 1263, "viviendas": 280}, {"nombre": "El Carmen", "zona": "Periurbana", "c": {"2022": 57, "2023": 162, "2024": 24, "2025": 3}, "total": 246, "poblacion": 1110, "viviendas": 246}, {"nombre": "Olímpico", "zona": "Periurbana", "c": {"2022": 41, "2023": 127, "2024": 35, "2025": 35}, "total": 238, "poblacion": 798, "viviendas": 177}, {"nombre": "Venecia", "zona": "Periurbana", "c": {"2022": 26, "2023": 93, "2024": 38, "2025": 17}, "total": 174, "poblacion": 1608, "viviendas": 357}, {"nombre": "Puerto Cali", "zona": "Urbana", "c": {"2022": 13, "2023": 38, "2024": 29, "2025": 16}, "total": 96, "poblacion": 1800, "viviendas": 400}, {"nombre": "Las Flores", "zona": "Urbana", "c": {"2022": 8, "2023": 50, "2024": 19, "2025": 7}, "total": 84, "poblacion": 1543, "viviendas": 343}, {"nombre": "Canaán", "zona": "Urbana", "c": {"2022": 7, "2023": 48, "2024": 10, "2025": 3}, "total": 68, "poblacion": 112, "viviendas": 16}, {"nombre": "Las Américas", "zona": "Urbana", "c": {"2022": 20, "2023": 29, "2024": 19, "2025": 0}, "total": 68, "poblacion": 1347, "viviendas": 299}, {"nombre": "20 de Julio", "zona": "Urbana", "c": {"2022": 13, "2023": 38, "2024": 8, "2025": 3}, "total": 62, "poblacion": 738, "viviendas": 164}, {"nombre": "Pueblito", "zona": "Urbana", "c": {"2022": 9, "2023": 25, "2024": 13, "2025": 6}, "total": 53, "poblacion": 1216, "viviendas": 270}, {"nombre": "San Martín", "zona": "Urbana", "c": {"2022": 9, "2023": 35, "2024": 8, "2025": 0}, "total": 52, "poblacion": 312, "viviendas": 69}, {"nombre": "San Francisco", "zona": "Periurbana", "c": {"2022": 12, "2023": 14, "2024": 12, "2025": 9}, "total": 47, "poblacion": 506, "viviendas": 112}, {"nombre": "San Pablo", "zona": "Urbana", "c": {"2022": 1, "2023": 21, "2024": 8, "2025": 7}, "total": 37, "poblacion": 878, "viviendas": 195}, {"nombre": "Porvenir", "zona": "Urbana", "c": {"2022": 5, "2023": 8, "2024": 10, "2025": 8}, "total": 31, "poblacion": 658, "viviendas": 146}, {"nombre": "La Paz", "zona": "Urbana", "c": {"2022": 7, "2023": 13, "2024": 6, "2025": 3}, "total": 29, "poblacion": 1039, "viviendas": 231}, {"nombre": "Las Palmeras", "zona": "Urbana", "c": {"2022": 5, "2023": 10, "2024": 5, "2025": 3}, "total": 23, "poblacion": 753, "viviendas": 16}, {"nombre": "El Jardín", "zona": "Urbana", "c": {"2022": 4, "2023": 12, "2024": 6, "2025": 0}, "total": 22, "poblacion": 520, "viviendas": 115}, {"nombre": "La Esperanza", "zona": "Urbana", "c": {"2022": 2, "2023": 7, "2024": 9, "2025": 2}, "total": 20, "poblacion": 699, "viviendas": 155}, {"nombre": "Ciudadela Deportiva", "zona": "Periurbana", "c": {"2022": 1, "2023": 1, "2024": 3, "2025": 0}, "total": 5, "poblacion": 417, "viviendas": 92}, {"nombre": "Bella Vista", "zona": "Periurbana", "c": {"2022": 0, "2023": 0, "2024": 0, "2025": 0}, "total": 0, "poblacion": 558, "viviendas": 124}]};
+const YRS = ['2022', '2023', '2024', '2025'];
+const C = { teal: '#0E9F8E', ocean: '#1F6FB2', coral: '#F26B4F', amber: '#F2A541', violet: '#7B5CC4', navy: '#0B4F6C' };
+const CAB = { lat: 2.57082, lon: -77.88542 };
+const nf = new Intl.NumberFormat('es-CO');
+const nf1 = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const pct = (v, d = 0) => new Intl.NumberFormat('es-CO', { style: 'percent', maximumFractionDigits: d }).format(v);
+const pcts = (v) => new Intl.NumberFormat('es-CO', { style: 'percent', maximumFractionDigits: 0, signDisplay: 'exceptZero' }).format(v);
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// ---------- Datos derivados ----------
+const A = Object.fromEntries(D.anual.map((r) => [r.anio, r]));
+const ipa24 = A['2024'].ipa, mun24 = A['2024'].casos;
+const lugares = [];
+const rankIn = (list) => { const s = list.slice().sort((a, b) => b.total - a.total); list.forEach((x) => { x.rango = s.indexOf(x) + 1; x.de = list.length; }); };
+D.veredas.forEach((v) => lugares.push({ ...v, tipo: 'vereda', grupo: 'Vereda rural · Río ' + v.rio }));
+D.barrios.forEach((b) => lugares.push({ ...b, tipo: 'barrio', grupo: 'Barrio de la cabecera · Zona ' + b.zona.toLowerCase() }));
+lugares.forEach((l) => { l.tasa = l.poblacion ? l.c['2024'] / l.poblacion * 1000 : null; l.peso = l.c['2024'] / mun24; });
+rankIn(lugares.filter((l) => l.tipo === 'vereda'));
+rankIn(lugares.filter((l) => l.tipo === 'barrio'));
+const byName = Object.fromEntries(lugares.map((l) => [l.nombre, l]));
+
+// ---------- Indicadores ----------
+$('k-casos').textContent = nf.format(mun24);
+$('k-ipa').textContent = nf1.format(ipa24);
+$('k-cambio').textContent = pcts((mun24 - A['2023'].casos) / A['2023'].casos);
+const z24 = D.zona.filter((r) => r.anio === '2024');
+$('k-rural').textContent = pct(z24.find((r) => r.zona === 'Rural').casos / z24.reduce((s, r) => s + r.casos, 0));
+const pico = D.anual.slice().sort((a, b) => b.ipa - a.ipa)[0];
+$('k-pico').textContent = pico.anio;
+$('k-pico-sub').textContent = nf.format(pico.casos) + ' casos · IPA ' + nf1.format(pico.ipa);
+
+// ---------- Tooltip ----------
+function tipFor(box) {
+  let t = box.querySelector('.tip');
+  if (!t) { t = document.createElement('div'); t.className = 'tip'; t.hidden = true; box.appendChild(t); }
+  return {
+    show(ev, title, lines) {
+      t.innerHTML = '<div class="t">' + esc(title) + '</div>' + lines.map((l) => '<div>' + esc(l) + '</div>').join('');
+      t.hidden = false;
+      const b = box.getBoundingClientRect();
+      let x = ev.clientX - b.left + 12; const y = ev.clientY - b.top - 10;
+      if (x + t.offsetWidth > b.width) x = ev.clientX - b.left - t.offsetWidth - 12;
+      t.style.left = Math.max(0, x) + 'px'; t.style.top = Math.max(0, y) + 'px';
+    },
+    hide() { t.hidden = true; }
+  };
+}
+
+// ---------- Gráfico de barras genérico ----------
+const SVGNS = 'http://www.w3.org/2000/svg';
+const mk = (tag, attrs, parent) => { const e = document.createElementNS(SVGNS, tag); Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v)); if (parent) parent.appendChild(e); return e; };
+const txt = (parent, x, y, s, opts = {}) => { const e = mk('text', { x, y, 'text-anchor': opts.anchor || 'middle', fill: opts.fill || 'var(--fg)' }, parent); if (opts.weight) e.setAttribute('font-weight', opts.weight); e.textContent = s; return e; };
+
+function bars(box, rows, { stacked = null, colors = [C.teal], grad = null, label, sub, tip }) {
+  box.innerHTML = '';
+  const W = Math.max(300, box.clientWidth || 360), H = 250, m = { t: 24, b: 46, l: 8, r: 8 };
+  const svg = mk('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img' }, box);
+  if (grad) {
+    const defs = mk('defs', {}, svg); const lg = mk('linearGradient', { id: grad.id, x1: 0, x2: 0, y1: 0, y2: 1 }, defs);
+    mk('stop', { offset: '0%', 'stop-color': grad.a }, lg); mk('stop', { offset: '100%', 'stop-color': grad.b }, lg);
+  }
+  const tot = (r) => stacked ? stacked.reduce((s, k) => s + r[k], 0) : r.v;
+  const max = Math.max(...rows.map(tot)) * 1.12 || 1;
+  const band = (W - m.l - m.r) / rows.length, bw = Math.min(54, band * 0.6);
+  const y = (v) => m.t + (H - m.t - m.b) * (1 - v / max);
+  for (let g = 0; g <= 3; g++) { const yy = m.t + (H - m.t - m.b) * g / 3; mk('line', { x1: m.l, x2: W - m.r, y1: yy, y2: yy, stroke: 'var(--grid)' }, svg); }
+  const tp = tipFor(box);
+  rows.forEach((r, i) => {
+    const cx = m.l + band * i + band / 2;
+    if (stacked) {
+      let acc = 0;
+      stacked.forEach((k, j) => {
+        const y0 = y(acc), y1 = y(acc + r[k]); acc += r[k];
+        const rect = mk('rect', { x: cx - bw / 2, y: y1, width: bw, height: Math.max(0, y0 - y1 - 1), fill: colors[j], rx: 2 }, svg);
+        rect.addEventListener('mousemove', (ev) => tp.show(ev, r.x, tip(r))); rect.addEventListener('mouseleave', () => tp.hide());
+      });
+    } else {
+      const rect = mk('rect', { x: cx - bw / 2, y: y(r.v), width: bw, height: y(0) - y(r.v), rx: 4, fill: r.muted ? 'var(--line)' : (grad ? `url(#${grad.id})` : colors[0]) }, svg);
+      rect.addEventListener('mousemove', (ev) => tp.show(ev, r.x, tip(r))); rect.addEventListener('mouseleave', () => tp.hide());
+    }
+    txt(svg, cx, y(tot(r)) - 7, label(r), { weight: 700 });
+    txt(svg, cx, H - m.b + 18, r.x);
+    if (sub) txt(svg, cx, H - m.b + 35, sub(r), { fill: 'var(--muted)' });
+  });
+  mk('line', { x1: m.l, x2: W - m.r, y1: y(0), y2: y(0), stroke: 'var(--muted)' }, svg);
+}
+
+function drawCharts() {
+  bars($('c-anual'), D.anual.map((r) => ({ x: r.anio, v: r.casos, ipa: r.ipa, muted: r.anio === '2025' })), {
+    grad: { id: 'g-teal', a: C.teal, b: C.ocean }, label: (r) => nf.format(r.v), sub: (r) => 'IPA ' + nf1.format(r.ipa),
+    tip: (r) => ['Casos: ' + nf.format(r.v), 'IPA: ' + nf1.format(r.ipa) + ' por 1.000']
+  });
+  const keys = ['Rural', 'Periurbana', 'Urbana'];
+  const wide = YRS.map((y) => { const o = { x: y }; keys.forEach((k) => { o[k] = D.zona.find((r) => r.anio === y && r.zona === k).casos; }); return o; });
+  bars($('c-zona'), wide, { stacked: keys, colors: [C.teal, C.amber, C.violet], label: (r) => nf.format(keys.reduce((s, k) => s + r[k], 0)), tip: (r) => keys.map((k) => k + ': ' + nf.format(r[k])) });
+  const l = byName[current];
+  if (l) bars($('f-serie'), YRS.map((y) => ({ x: y, v: l.c[y], mun: A[y].casos, muted: y === '2025' })), {
+    grad: { id: 'g-coral', a: C.amber, b: C.coral }, label: (r) => nf.format(r.v), sub: (r) => pct(r.v / r.mun, 1) + ' del mpio.',
+    tip: (r) => ['Casos del lugar: ' + nf.format(r.v), 'Casos del municipio: ' + nf.format(r.mun), 'Parte del municipio: ' + pct(r.v / r.mun, 1)]
+  });
+}
+
+// ---------- Tablas ----------
+function fillTable(tbody, list) {
+  tbody.innerHTML = '';
+  list.slice().sort((a, b) => b.total - a.total).forEach((l) => {
+    const tr = document.createElement('tr'); tr.dataset.key = l.nombre;
+    const cells = [[l.nombre], [l.rio || l.zona, 'l'], [nf.format(l.c['2022']), 'hn'], [nf.format(l.c['2023']), 'hn'], [nf.format(l.c['2024'])], [nf.format(l.c['2025']), 'hn'], [nf.format(l.total)], [nf.format(l.poblacion), 'hn'], [l.tasa == null ? '—' : nf1.format(l.tasa)]];
+    cells.forEach(([v, cls]) => { const td = document.createElement('td'); if (cls) td.className = cls; td.textContent = v; tr.appendChild(td); });
+    tr.addEventListener('click', () => { pick(l.nombre); $('ficha').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    tbody.appendChild(tr);
+  });
+}
+fillTable($('t-veredas'), lugares.filter((l) => l.tipo === 'vereda'));
+fillTable($('t-barrios'), lugares.filter((l) => l.tipo === 'barrio'));
+
+// ---------- Selector ----------
+const sel = $('sel');
+sel.appendChild(new Option('Todo el municipio', ''));
+[['Veredas rurales', 'vereda'], ['Barrios de la cabecera', 'barrio']].forEach(([label, tipo]) => {
+  const g = document.createElement('optgroup'); g.label = label;
+  lugares.filter((l) => l.tipo === tipo).map((l) => l.nombre).sort((a, b) => a.localeCompare(b, 'es')).forEach((n) => g.appendChild(new Option(n, n)));
+  sel.appendChild(g);
+});
+sel.addEventListener('change', () => pick(sel.value));
+$('f-clear').addEventListener('click', () => pick(''));
+
+// ---------- Mapa satelital ----------
+const map = L.map('map', { scrollWheelZoom: false }).setView([2.565, -77.74], 11);
+const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, attribution: 'Imagen © Esri, Maxar, Earthstar Geographics' }).addTo(map);
+const places = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, opacity: .9 }).addTo(map);
+const calles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© colaboradores de OpenStreetMap' });
+L.control.layers({ 'Satélite': sat, 'Calles (OpenStreetMap)': calles }, { 'Nombres de lugares': places }, { collapsed: true }).addTo(map);
+L.control.scale({ imperial: false }).addTo(map);
+
+const maxT = Math.max(...D.veredas.map((v) => v.total));
+const markers = {};
+const popupHtml = (l) => `<h4>${esc(l.nombre)}</h4><div style="color:#666">${esc(l.grupo)}</div>
+  <div style="margin-top:6px"><b>Casos 2022–2025:</b> ${nf.format(l.total)} (puesto ${l.rango} de ${l.de})<br>
+  <b>Casos 2024:</b> ${nf.format(l.c['2024'])} · <b>Tasa:</b> ${nf1.format(l.tasa)} por 1.000<br>
+  <b>Población:</b> ${nf.format(l.poblacion)} hab.<br>
+  <b>Peso en el municipio 2024:</b> ${pct(l.peso, 1)}</div>`;
+D.veredas.filter((v) => v.lat != null).forEach((v) => {
+  const l = byName[v.nombre];
+  const color = v.rio === 'Napi' ? C.coral : C.ocean;
+  const mkr = L.circleMarker([v.lat, v.lon], { radius: 7 + 20 * Math.sqrt(v.total / maxT), color: '#FFFFFF', weight: 2, fillColor: color, fillOpacity: .85 })
+    .addTo(map).bindPopup(popupHtml(l)).bindTooltip(`${v.nombre} · ${nf.format(v.total)}`, { permanent: true, direction: 'right', className: 'vlabel', offset: [8, 0] });
+  mkr.on('click', () => pick(v.nombre, false));
+  markers[v.nombre] = mkr;
+});
+const cabMarker = L.marker([CAB.lat, CAB.lon], { icon: L.divIcon({ className: '', html: '<div style="width:16px;height:16px;background:#0B4F6C;border:2px solid #fff;border-radius:3px;box-shadow:0 1px 4px rgba(0,0,0,.5)"></div>', iconSize: [16, 16], iconAnchor: [8, 8] }) })
+  .addTo(map).bindTooltip('Guapi (cabecera)', { permanent: true, direction: 'left', className: 'vlabel', offset: [-10, 0] });
+const muniPopup = () => `<h4 style="color:#0B4F6C">Guapi – dato municipal</h4>` + D.anual.map((r) => `<b>${r.anio}${r.anio === '2025' ? '*' : ''}:</b> ${nf.format(r.casos)} casos · IPA ${nf1.format(r.ipa)}`).join('<br>') + '<div style="color:#666;font-size:11px;margin-top:4px">* 2025 parcial</div>';
+cabMarker.bindPopup(muniPopup);
+const fitAll = () => map.fitBounds(L.latLngBounds(D.veredas.filter((v) => v.lat != null).map((v) => [v.lat, v.lon]).concat([[CAB.lat, CAB.lon]])).pad(0.12));
+fitAll();
+
+// ---------- Selección ----------
+let current = '';
+function pick(name, move = true) {
+  current = byName[name] ? name : '';
+  sel.value = current;
+  const l = byName[current];
+  $('f-muni').hidden = !!l; $('f-lugar').hidden = !l;
+  document.querySelectorAll('tbody tr').forEach((tr) => tr.classList.toggle('sel', tr.dataset.key === current));
+  Object.entries(markers).forEach(([n, m]) => m.setStyle({ color: n === current ? '#FFD23F' : '#FFFFFF', weight: n === current ? 4 : 2 }));
+  if (!l) { if (move) { map.closePopup(); fitAll(); } return; }
+  $('f-nombre').textContent = l.nombre;
+  $('f-tipo').textContent = l.grupo;
+  $('f-total').textContent = nf.format(l.total);
+  $('f-c24').textContent = nf.format(l.c['2024']);
+  $('f-pob').textContent = nf.format(l.poblacion);
+  $('f-tasa').textContent = l.tasa == null ? '—' : nf1.format(l.tasa);
+  $('f-peso').textContent = pct(l.peso, 1);
+  $('f-rango').textContent = `${l.rango} de ${l.de}`;
+  const veces = l.tasa / ipa24;
+  $('f-frase').textContent = `Su tasa de 2024 equivale a ${nf1.format(veces)} veces el IPA municipal de ${nf1.format(ipa24)} por 1.000 habitantes` + (veces >= 1 ? ', por encima del promedio de Guapi.' : ', por debajo del promedio de Guapi.');
+  drawCharts();
+  if (move) {
+    if (markers[current]) { map.flyTo(markers[current].getLatLng(), 13, { duration: .8 }); markers[current].openPopup(); }
+    else if (l.tipo === 'barrio') { map.flyTo([CAB.lat, CAB.lon], 14, { duration: .8 }); cabMarker.bindPopup(popupHtml(l)).openPopup(); cabMarker.once('popupclose', () => cabMarker.bindPopup(muniPopup)); }
+    else { fitAll(); }
+  }
+}
+
+// ---------- Modo día / noche ----------
+document.querySelectorAll('.modo button').forEach((b) => b.addEventListener('click', () => {
+  const m = b.dataset.modo;
+  if (m === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', m);
+  document.querySelectorAll('.modo button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+}));
+
+drawCharts();
+let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(drawCharts, 150); });
+</script>
+</body>
+</html>
