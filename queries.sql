@@ -44,23 +44,3 @@ SELECT zona, SUM(casos) AS total_casos FROM zona GROUP BY zona ORDER BY total_ca
 SELECT nombre, rio, casos_2024, poblacion, ROUND((casos_2024 * 1000.0) / poblacion, 2) AS tasa_2024
 FROM veredas
 ORDER BY tasa_2024 DESC;
-
-CREATE TABLE municipio_evento_460 (
-  municipio TEXT,
-  anio INTEGER,
-  casos_confirmados INTEGER,
-  PRIMARY KEY (municipio, anio)
-);
-
-INSERT INTO municipio_evento_460 (municipio, anio, casos_confirmados) VALUES
-('Guapi', 2018, 5), ('Guapi', 2019, 0), ('Guapi', 2020, 0), ('Guapi', 2021, 3),
-('Guapi', 2022, 1), ('Guapi', 2023, 1), ('Guapi', 2024, 5), ('Guapi', 2025, 12),
-('Timbiquí', 2018, 18), ('Timbiquí', 2019, 2), ('Timbiquí', 2020, 2), ('Timbiquí', 2021, 0),
-('Timbiquí', 2022, 0), ('Timbiquí', 2023, 2), ('Timbiquí', 2024, 5), ('Timbiquí', 2025, 1),
-('López de Micay', 2018, 0), ('López de Micay', 2019, 0), ('López de Micay', 2020, 0), ('López de Micay', 2021, 0),
-('López de Micay', 2022, 0), ('López de Micay', 2023, 0), ('López de Micay', 2024, 1), ('López de Micay', 2025, 1);
-
--- Evento 460: malaria asociada (formas mixtas); no equivale al total de malaria.
-SELECT anio, municipio, casos_confirmados
-FROM municipio_evento_460
-ORDER BY anio, municipio;

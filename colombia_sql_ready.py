@@ -52,22 +52,6 @@ INSERT INTO veredas (nombre, rio, poblacion, total, casos_2022, casos_2023, caso
 ('Calle Larga', 'Napi', 387, 129, 1, 35, 61, 32),
 ('Quiroga', 'Guajuí', 927, 89, 17, 17, 20, 35),
 ('San Agustín', 'Napi', 343, 55, 18, 36, 1, 0);
-
-DROP TABLE IF EXISTS municipio_evento_460;
-CREATE TABLE municipio_evento_460 (
-  municipio TEXT,
-  anio INTEGER,
-  casos_confirmados INTEGER,
-  PRIMARY KEY (municipio, anio)
-);
-
-INSERT INTO municipio_evento_460 (municipio, anio, casos_confirmados) VALUES
-('Guapi', 2018, 5), ('Guapi', 2019, 0), ('Guapi', 2020, 0), ('Guapi', 2021, 3),
-('Guapi', 2022, 1), ('Guapi', 2023, 1), ('Guapi', 2024, 5), ('Guapi', 2025, 12),
-('Timbiquí', 2018, 18), ('Timbiquí', 2019, 2), ('Timbiquí', 2020, 2), ('Timbiquí', 2021, 0),
-('Timbiquí', 2022, 0), ('Timbiquí', 2023, 2), ('Timbiquí', 2024, 5), ('Timbiquí', 2025, 1),
-('López de Micay', 2018, 0), ('López de Micay', 2019, 0), ('López de Micay', 2020, 0), ('López de Micay', 2021, 0),
-('López de Micay', 2022, 0), ('López de Micay', 2023, 0), ('López de Micay', 2024, 1), ('López de Micay', 2025, 1);
 ''')
 
 print('\n=== ANUAL ===')
@@ -90,13 +74,6 @@ SELECT nombre, casos_2022, casos_2023, casos_2024, casos_2025,
        (casos_2024 - casos_2023) AS cambio_2024_vs_2023
 FROM veredas
 ORDER BY total DESC
-''', conn))
-
-print('\n=== EVENTO 460 POR MUNICIPIO Y AÑO ===')
-print(pd.read_sql_query('''
-SELECT municipio, anio, casos_confirmados
-FROM municipio_evento_460
-ORDER BY anio, municipio
 ''', conn))
 
 conn.close()
