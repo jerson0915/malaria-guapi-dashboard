@@ -142,6 +142,9 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
 @media (max-width: 900px) { .mapgrid { grid-template-columns: 1fr; } }
 #mapcard { --c: var(--ocean); }
 #map { height: 560px; border-radius: 10px; border: 1px solid var(--line); }
+#municipioSelect {
+  margin-top: 8px; margin-bottom: 10px; width: min(100%, 260px); padding: 9px 10px; border: 2px solid var(--ocean); border-radius: 10px; background: var(--panel); color: var(--fg); font: inherit; font-weight: 600;
+}
 @media (max-width: 600px) { #map { height: 420px; } }
 .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--muted); margin: 10px 0 0; }
 .sw { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
@@ -264,6 +267,13 @@ abbr[title] { text-decoration: underline dotted; text-underline-offset: 3px; cur
     <section class="card" id="mapcard">
       <h2>Mapa satelital de veredas priorizadas</h2>
       <p class="note">Toca un círculo para ver su ficha. El tamaño es el total de casos 2022–2025. Puedes cambiar a mapa de calles con el botón de capas.</p>
+      <label for="municipioSelect" class="ftype">Municipio del Pacífico caucano</label>
+      <select id="municipioSelect">
+        <option value="">Todos los municipios</option>
+        <option value="Guapi">Guapi</option>
+        <option value="Timbiquí">Timbiquí</option>
+        <option value="López de Micay">López de Micay</option>
+      </select>
       <div id="map" role="region" aria-label="Mapa satelital de Guapi"></div>
       <!-- Leyenda de colores del mapa (si cambias colores en C9, cámbialos aquí también) -->
       <div class="legend">
@@ -715,6 +725,42 @@ cabMarker.bindPopup(muniPopup);
 // 5) Encuadre inicial
 const fitAll = () => map.fitBounds(L.latLngBounds(D.veredas.filter((v) => v.lat != null).map((v) => [v.lat, v.lon]).concat([[CAB.lat, CAB.lon]])).pad(0.12));
 fitAll();
+
+const MUNICIPIOS_GEOJSON = {
+  type: 'FeatureCollection',
+  features: [
+    { type: 'Feature', properties: { municipio: 'Guapi' }, geometry: { type: 'Polygon', coordinates: [[[-77.98,2.48],[-77.92,2.48],[-77.90,2.58],[-77.86,2.62],[-77.83,2.69],[-77.80,2.72],[-77.75,2.74],[-77.70,2.74],[-77.67,2.69],[-77.66,2.60],[-77.68,2.52],[-77.70,2.46],[-77.78,2.43],[-77.86,2.42],[-77.92,2.44],[-77.98,2.48]]] } },
+    { type: 'Feature', properties: { municipio: 'Timbiquí' }, geometry: { type: 'Polygon', coordinates: [[[-77.92,2.15],[-77.85,2.18],[-77.82,2.26],[-77.78,2.34],[-77.70,2.41],[-77.66,2.48],[-77.52,2.53],[-77.40,2.58],[-77.34,2.52],[-77.32,2.43],[-77.35,2.31],[-77.42,2.20],[-77.55,2.09],[-77.68,2.08],[-77.82,2.10],[-77.92,2.15]]] } },
+    { type: 'Feature', properties: { municipio: 'López de Micay' }, geometry: { type: 'Polygon', coordinates: [[[-77.78,2.60],[-77.52,2.61],[-77.42,2.66],[-77.35,2.72],[-77.26,2.86],[-77.16,2.98],[-77.08,3.08],[-76.94,3.12],[-76.88,3.05],[-76.90,2.95],[-76.98,2.82],[-77.08,2.74],[-77.20,2.68],[-77.36,2.62],[-77.52,2.60],[-77.78,2.60]]] } }
+  ]
+};
+
+const municipiosLayer = L.geoJSON(MUNICIPIOS_GEOJSON, {
+  style: { color: '#0B4F6C', weight: 2, fillColor: '#9FD5FF', fillOpacity: 0.25 },
+  onEachFeature: (feature, layer) => {
+    const nombre = feature.properties.municipio;
+    layer.bindPopup('<b>' + nombre + '</b>');
+  }
+}).addTo(map);
+
+const municipioSelect = $('municipioSelect');
+municipioSelect.addEventListener('change', () => {
+  const nombre = municipioSelect.value;
+  if (!nombre) {
+    fitAll();
+    return;
+  }
+  let target = null;
+  municipiosLayer.eachLayer((layer) => {
+    const n = (layer.feature.properties.municipio || '').toLowerCase();
+    const ok = n === nombre.toLowerCase() || n === nombre.toLowerCase().replace('lópez', 'lopez');
+    if (ok) target = layer;
+  });
+  if (target) {
+    map.flyToBounds(target.getBounds(), { padding: [30, 30], maxZoom: 11, duration: 1.2 });
+    target.openPopup();
+  }
+});
 
 /* --------------------------------------------------------------------------
    C10 · SELECCIÓN DE LUGAR (llena la ficha de B3)
