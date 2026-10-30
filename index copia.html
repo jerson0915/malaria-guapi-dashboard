@@ -269,11 +269,12 @@ abbr[title] { text-decoration: underline dotted; text-underline-offset: 3px; cur
       <p class="note">Toca un círculo para ver su ficha. El tamaño es el total de casos 2022–2025. Puedes cambiar a mapa de calles con el botón de capas.</p>
       <label for="municipioSelect" class="ftype">Municipio del Pacífico caucano</label>
       <select id="municipioSelect">
-        <option value="">Todos los municipios</option>
+        <option value="">Vista inicial: Guapi</option>
         <option value="Guapi">Guapi</option>
         <option value="Timbiquí">Timbiquí</option>
         <option value="López de Micay">López de Micay</option>
       </select>
+      <p class="note" id="municipioDataStatus" role="status" aria-live="polite">Los indicadores principales de esta dashboard corresponden únicamente a Guapi. La tabla inferior muestra aparte registros del evento 460 (formas mixtas), no el total de malaria.</p>
       <div id="map" role="region" aria-label="Mapa satelital de Guapi"></div>
       <!-- Leyenda de colores del mapa (si cambias colores en C9, cámbialos aquí también) -->
       <div class="legend">
@@ -312,6 +313,19 @@ abbr[title] { text-decoration: underline dotted; text-underline-offset: 3px; cur
       </div>
     </aside>
   </div>
+
+  <section class="card" id="malaria460">
+    <h2>Malaria asociada (formas mixtas), evento 460</h2>
+    <p class="note">Registros confirmados agrupados por municipio de ocurrencia y año, a partir de los archivos suministrados. No representan el total de casos de malaria. Un 0 indica que no se encontraron registros de este evento en esos archivos, no que no hubiera malaria.</p>
+    <div class="tbox"><table style="min-width: 760px">
+      <thead><tr><th class="l">Municipio</th><th>2018</th><th>2019</th><th>2020</th><th>2021</th><th>2022</th><th>2023</th><th>2024</th><th>2025</th></tr></thead>
+      <tbody>
+        <tr><td class="l">Guapi</td><td>5</td><td>0</td><td>0</td><td>3</td><td>1</td><td>1</td><td>5</td><td>12</td></tr>
+        <tr><td class="l">Timbiquí</td><td>18</td><td>2</td><td>2</td><td>0</td><td>0</td><td>2</td><td>5</td><td>1</td></tr>
+        <tr><td class="l">López de Micay</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td><td>1</td></tr>
+      </tbody>
+    </table></div>
+  </section>
 
   <!-- ------------------------------------------------------------------------
        B4 · GRÁFICOS ANUALES
@@ -746,6 +760,11 @@ const municipiosLayer = L.geoJSON(MUNICIPIOS_GEOJSON, {
 const municipioSelect = $('municipioSelect');
 municipioSelect.addEventListener('change', () => {
   const nombre = municipioSelect.value;
+  $('municipioDataStatus').textContent = nombre === 'Guapi'
+    ? 'Municipio seleccionado: Guapi. Los indicadores principales corresponden a Guapi; la tabla inferior muestra solo el evento 460, no el total de malaria.'
+    : nombre
+      ? `Mapa enfocado en ${nombre}. Los indicadores principales siguen siendo de Guapi; la tabla inferior muestra para este municipio solo registros del evento 460, no el total de malaria.`
+      : 'Vista inicial: Guapi. Los indicadores principales corresponden a Guapi; la tabla inferior muestra por separado registros del evento 460 para los tres municipios.';
   if (!nombre) {
     fitAll();
     return;
